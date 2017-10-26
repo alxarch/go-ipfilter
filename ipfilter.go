@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+var HTTPClient = http.DefaultClient
+
 type IPNumber uint32
 
 type IPv4Filter struct {
@@ -48,7 +50,7 @@ func ReadURL(urlStr string, blacklist bool) (*IPFilter, error) {
 }
 
 func readURL(urlStr string) (io.ReadCloser, error) {
-	res, err := http.DefaultClient.Get(urlStr)
+	res, err := HTTPClient.Get(urlStr)
 	defer func() {
 		if err != nil && res != nil && res.Body != nil {
 			res.Body.Close()
