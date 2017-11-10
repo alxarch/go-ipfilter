@@ -16,6 +16,7 @@ var HTTPClient = http.DefaultClient
 type IPNumber uint32
 
 type IPv4Filter struct {
+	size      int
 	index     [256][]IPNumber
 	blacklist bool
 }
@@ -29,6 +30,9 @@ type IPFilter struct {
 }
 
 func (f *IPFilter) Size() int {
+	return f.size
+}
+func (f *IPv4Filter) Size() int {
 	return f.size
 }
 
@@ -279,19 +283,21 @@ func ReadIPv4Blacklist(r io.Reader) (*IPv4Filter, error) {
 func ReadIPv4(r io.Reader, blacklist bool) (*IPv4Filter, error) {
 	index := [256][]IPNumber{}
 	s := bufio.NewScanner(r)
+	i := 0
 	for s.Scan() {
 		ip := s.Text()
 		if ip == "" || ip[0] == '#' {
 			continue
 		}
 		if k, n := ParseIPNumber(ip); n != 0 {
+			i++
 			index[k] = append(index[k], n)
 		}
 	}
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
-	f := &IPv4Filter{index: index, blacklist: blacklist}
+	f := &IPv4Filter{index: index, blacklist: blacklist, size: i}
 
 	f.sortIndex()
 	return f, nil
