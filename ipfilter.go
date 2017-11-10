@@ -51,15 +51,11 @@ func ReadURL(urlStr string, blacklist bool) (*IPFilter, error) {
 
 func readURL(urlStr string) (io.ReadCloser, error) {
 	res, err := HTTPClient.Get(urlStr)
-	defer func() {
-		if err != nil && res != nil && res.Body != nil {
-			res.Body.Close()
-		}
-	}()
 	if err != nil {
 		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
+		res.Body.Close()
 		return nil, fmt.Errorf("Failed to load ipfilter from %s (%d): %s", urlStr, res.StatusCode, res.Status)
 	}
 	return res.Body, nil
@@ -144,15 +140,15 @@ func (f *IPFilter) MatchIP(ip net.IP) bool {
 	shard := f.index[k]
 	start, end := 0, len(shard)
 	for end > start {
-		pos := (end - start) >> 1
+		pos := start + (end-start)>>1
 		v := shard[pos]
 		switch bytes.Compare(v, ip) {
 		case 1:
 			end = pos
-		case 0:
-			return !f.blacklist
-		default:
+		case -1:
 			start = pos
+		default:
+			return !f.blacklist
 		}
 	}
 	return f.blacklist
@@ -240,15 +236,15 @@ func (f *IPv4Filter) match(k uint8, n IPNumber) bool {
 	shard := f.index[k]
 	start, end := 0, len(shard)
 	for end > start {
-		pos := (end - start) >> 1
+		pos := start + (end-start)>>1
 		v := shard[pos]
-		if v == n {
-			return !f.blacklist
-		}
-		if v > n {
+		switch {
+		case v > n:
 			end = pos
-		} else {
+		case v < n:
 			start = pos
+		default:
+			return !f.blacklist
 		}
 	}
 	return f.blacklist
