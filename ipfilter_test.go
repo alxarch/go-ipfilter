@@ -19,39 +19,55 @@ func Test_IPWhitelist(t *testing.T) {
 func Benchmark_IPv4Filter(b *testing.B) {
 	ip := net.ParseIP("66.54.55.6")
 	var n bool
-	for i := 0; i < len(usFilterMap)*1000; i++ {
+	for i := 0; i < 1000; i++ {
 		ip[3] = uint8(i % 255)
 		n = usFilter.MatchIP(ip)
 	}
 	_ = n
 }
 
-func Benchmark_IPv4FilterMap(b *testing.B) {
-	ip := net.ParseIP("66.54.55.6")
-	var n bool
-	for i := 0; i < len(usFilterMap)*1000; i++ {
-		ip[3] = uint8(i % 255)
-		n = usFilterMap.MatchIP(ip)
-	}
-	_ = n
-}
 func Benchmark_IPFilter(b *testing.B) {
 	ip := net.ParseIP("66.54.55.6")
 	var n bool
-	for i := 0; i < len(usFilterMap)*1000; i++ {
+	for i := 0; i < 1000; i++ {
 		ip[3] = uint8(i % 255)
 		n = usFilter6.MatchIP(ip)
 	}
 	_ = n
 }
 
-var usFilterMap ipfilter.IPv4FilterMap
 var usFilter *ipfilter.IPv4Filter
 var usFilter6 *ipfilter.IPFilter
 
+func Test_v4Filter(t *testing.T) {
+	f, err := ipfilter.ReadURLv4("https://storage.googleapis.com/native-one/ip_us.txt", false)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if f == nil {
+		t.Error("Nil filter")
+	}
+	if f.Size() != 20151 {
+		t.Log("size", f.Size())
+		t.Fail()
+	}
+	ok := f.MatchString("8.8.8.8")
+	if ok {
+		t.Error("ok")
+	}
+
+	ok = f.MatchString("107.72.162.112")
+	if !ok {
+		t.Error("ok")
+	}
+	ok = f.MatchString("")
+	if ok {
+		t.Error("ok")
+	}
+}
+
 func init() {
-	usFilterMap, _ = ipfilter.ReadIPv4Map(data)
-	data.Reset()
 	usFilter, _ = ipfilter.ReadIPv4Whitelist(data)
 	data.Reset()
 	usFilter6, _ = ipfilter.ReadIPWhitelist(data)

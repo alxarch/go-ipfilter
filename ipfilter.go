@@ -21,8 +21,6 @@ type IPv4Filter struct {
 	blacklist bool
 }
 
-type IPv4FilterMap map[uint32]bool
-
 type IPFilter struct {
 	index     map[uint64][]net.IP
 	size      int
@@ -143,14 +141,14 @@ func (f *IPFilter) MatchIP(ip net.IP) bool {
 	k := Sum64a(ip)
 	shard := f.index[k]
 	start, end := 0, len(shard)
-	for end > start {
-		pos := start + (end-start)>>1
+	for start < end {
+		pos := int(uint(start+end) >> 1)
 		v := shard[pos]
 		switch bytes.Compare(v, ip) {
 		case 1:
 			end = pos
 		case -1:
-			start = pos
+			start = pos + 1
 		default:
 			return !f.blacklist
 		}
@@ -220,14 +218,6 @@ func ParseIP(addr string) (ip net.IP) {
 
 }
 
-func (f IPv4FilterMap) MatchString(v string) bool {
-	return f == nil || f[uint32(ParseIPNumberOnly(v))]
-}
-
-func (f IPv4FilterMap) MatchIP(ip net.IP) bool {
-	return f == nil || f[uint32(IPNumberOf(ip))]
-}
-
 func (f *IPv4Filter) MatchIP(ip net.IP) bool {
 	n := IPNumberOf(ip)
 	if n == 0 {
@@ -239,14 +229,14 @@ func (f *IPv4Filter) MatchIP(ip net.IP) bool {
 func (f *IPv4Filter) match(k uint8, n IPNumber) bool {
 	shard := f.index[k]
 	start, end := 0, len(shard)
-	for end > start {
-		pos := start + (end-start)>>1
+	for start < end {
+		pos := int(uint(start+end) >> 1)
 		v := shard[pos]
 		switch {
 		case v > n:
 			end = pos
 		case v < n:
-			start = pos
+			start = pos + 1
 		default:
 			return !f.blacklist
 		}
@@ -324,24 +314,4 @@ func BuildIPv4(ips []string, blacklist bool) *IPv4Filter {
 	f := &IPv4Filter{index: index, blacklist: blacklist}
 	f.sortIndex()
 	return f
-}
-
-func ReadIPv4Map(r io.Reader) (m IPv4FilterMap, err error) {
-	m = make(map[uint32]bool)
-	s := bufio.NewScanner(r)
-	for s.Scan() {
-		ip := s.Text()
-		if ip == "" || ip[0] == '#' {
-			continue
-		}
-
-		if n := ParseIPNumberOnly(ip); n != 0 {
-			m[uint32(n)] = true
-		}
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
-	}
-	return m, nil
-
 }
